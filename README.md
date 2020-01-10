@@ -8,3 +8,4 @@ I am making my own Discord bot to use it on my server. May make it publicly acce
 - [ ] Add more info to display with `profile` command.
 - [ ] Make a `deluge-console` bridge to use `deluge-console` from my server.
 - [ ] Add both Turkish and English explanation of my code and to `README.md` too.
+- [ ] Add string input in between quotes while parsing command.

@@ -11,8 +11,6 @@ if (fs.existsSync("./dcToken.js")) {
   exit();
 }
 
-
-
 function cmdParser(cmdIn, prefix) {
   prefix = prefix.replace(new RegExp("([\\W])", "g"), "\\$1");
   if (cmdIn.match(new RegExp(`^${prefix}(?!\\s).*$`))) {
@@ -34,7 +32,7 @@ function cmdParser(cmdIn, prefix) {
 }
 
 client.on('ready', () => {
-  console.log(`Logged in as "${client.user.tag}"`);
+  console.log(`Bot "${client.user.tag}" is ready!`);
 });
 
 client.on('message', msg => {
@@ -51,11 +49,12 @@ client.on('message', msg => {
         .setTitle(`${user.username}#${user.discriminator}`)
         .setURL(`${avatarURL}?size=1024`)
         .setThumbnail(avatarURL)
+        .addField(cmdLang[conf.lang].profile.id, user.id)
         .addField(cmdLang[conf.lang].profile.join, new Date(user.lastMessage.member.joinedTimestamp)
           .toLocaleDateString(conf.lang, {
             dateStyle: "full", timeStyle: "medium"
           }))
-        .setFooter(cmdLang[conf.lang].profile.generated)
+        .setFooter(cmdLang[conf.lang].profile.generated, `https://cdn.discordapp.com/avatars/${client.user.id}/${client.user.avatar}.png`)
         .setTimestamp(new Date())
       msg.reply(profile);
     }
