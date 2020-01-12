@@ -5,7 +5,7 @@ const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
 const MongoClient = require('mongodb').MongoClient;
 
-
+// Will add a config option for mongoURL variable.
 var mongoURL = "mongodb://localhost:27017/discord";
 var serverData = {}
 
@@ -147,38 +147,33 @@ client.on('message', msg => {
 var presenceLast = {};
 
 // Added presence tracking feature.
-client.on("presenceUpdate", upd => {
-  if (upd.user.bot) return;
-  // console.log(`Update received for user ${upd.user.id}.`);
-  var presence = {
-    user: upd.user.id,
-    timestamp: new Date().getTime(),
-    presence: upd.guild.presences.get(upd.user.id)
-  };
-  if (!(upd.user.id in presenceLast)) {
-    //console.log(presence);
-    insertPresence(presence);
-  } else {
-    //console.log(presenceLast);
-    if (!upd.guild.presences.get(upd.user.id).equals(presenceLast[upd.user.id].presence)) {
-      insertPresence(presence);
-    } else {
-      // console.log(`Data will not be saved for user ${upd.user.id}.`);
-    }
-  }
-  presenceLast[upd.user.id] = presence;
-})
-
-
-// Will move this function into another file to store all specific functions
-// in one place later.
-function insertPresence(pres) {
+client.on("presenceUpdate", (oldPres, newPres)=> {
+  if (newPres.user.bot) return;
   // Format:
   // {
   //   user: "user_id",
   //   timestamp: 1578852296892,
   //   presence: Object -> Discord.Presence data
   // }
+  var pres = {
+    user: newPres.user.id,
+    timestamp: new Date(),
+    presence: newPres.guild.presences.get(newPres.user.id)
+  }
+  if (pres.user in presenceLast) {
+    if (!pres.presence.equals(presenceLast[pres.user])) {
+      insertPresence(pres);
+    }
+  } else {
+    insertPresence(pres);
+  }
+  presenceLast[newPres.user.id] = pres.presence;
+})
+
+
+// Will move this function into another file to store all specific functions
+// in one place later.
+function insertPresence(pres) {
   MongoClient.connect(mongoURL, function(err, db) {
     if (err) throw err;
     var dbo = db.db("discord");
