@@ -1,9 +1,32 @@
-const Discord = require('discord.js');
+var Discord = require('discord.js');
 const client = new Discord.Client();
 const fs = require('fs');
 const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
+const MongoClient = require('mongodb').MongoClient;
+
+
+var mongoURL = "mongodb://localhost:27017/discord";
+var serverData = {}
+
+function reloadServerData() {
+  MongoClient.connect(mongoURL, (err, db)=>{
+    if (err) throw err;
+    var dbo = db.db("discord");
+    dbo.collection("bot_data").find({}).toArray((err, resp)=>{
+      if (err) throw err;
+      resp.forEach((sw)=>{
+        serverData[sw.id] = sw;
+      })
+      return;
+    })
+  })
+}
+
+reloadServerData();
+
 var dcToken;
+
 if (fs.existsSync("./dcToken.js")) {
   dcToken = require('./dcToken.js');
 } else {
@@ -11,37 +34,54 @@ if (fs.existsSync("./dcToken.js")) {
   exit();
 }
 
+
 function cmdParser(cmdIn, prefix) {
-  prefix = prefix.replace(new RegExp("([\\W])", "g"), "\\$1");
-  if (cmdIn.match(new RegExp(`^${prefix}(?!\\s).*$`))) {
-    return cmdIn.split(/\s/)
-      .reduce((acc, arg, ind)=>{
-        if (arg.match(`^${prefix}.*$`) && ind == 0) {
-          acc["cmd"] = arg.replace(new RegExp(prefix), "");
-          return acc;
-        } else {
-          acc["params"].push(arg);
-          return acc;
-        }
-      }, {
-        "params": []
-      });
-  } else {
-    return false;
-  }
+  return cmdIn.split(/ +/)
+    .reduce((acc, arg, ind)=>{
+      if (arg.indexOf(prefix) == 0 && ind == 0) {
+        acc["cmd"] = arg.replace(prefix, "");
+        return acc;
+      } else {
+        acc["params"].push(arg);
+        return acc;
+      }
+    }, {
+      "params": []
+    });
 }
+
+
 
 client.on('ready', () => {
   console.log(`Bot "${client.user.tag}" is ready!`);
+  //console.log(client);
 });
 
+
+
 client.on('message', msg => {
-  var command = ["profile", "profil"];
-  var prx = conf.prefix;
+  if (msg.author.bot) return;
+  var prx;
+  if (msg.guild.id in serverData) {
+    if ("prefix" in serverData[msg.guild.id]) {
+      prx = serverData[msg.guild.id].prefix;
+    } else {
+      prx = conf.prefix;
+    }
+  } else {
+    prx = conf.prefix;
+  }
+
+  // Will add language selection later.
+  var lang = conf.lang;
+  if(msg.content.indexOf(prx) !== 0) return;
   var cmdDef = cmdParser(msg.content, prx);
   client.users.get(msg.author.id)
   if (cmdDef) {
-    if (command.includes(cmdDef.cmd) && cmdDef.params.length == 0) {
+
+
+    // Profile command.
+    if (cmdDef.cmd == "profile" && cmdDef.params.length == 0) {
       var user = client.users.get(msg.author.id)
       var avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
       var profile = new Discord.RichEmbed()
@@ -58,7 +98,97 @@ client.on('message', msg => {
         .setTimestamp(new Date())
       msg.reply(profile);
     }
+
+
+    // Set prefix command.
+    if (cmdDef.cmd == "setp") { // Add permission check when changing prefix.
+      if (cmdDef.params.length == 1) {
+        if (cmdDef.params[0].length <= 2) {
+          if (cmdDef.params[0].match(new RegExp(/^([^\w\s\/]|_){1,2}$/, "g"))) {
+            MongoClient.connect(mongoURL, (err, db)=>{
+              if (err) throw err;
+              var dbo = db.db("discord");
+              dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {prefix: cmdDef.params[0]}}, { upsert: true })
+            })
+            reloadServerData();
+            msg.reply(cmdLang[conf.lang].setp.set)
+          } else {
+            msg.reply(cmdLang[conf.lang].setp.perror2)
+          }
+        } else {
+          msg.reply(cmdLang[conf.lang].setp.perror1)
+        }
+      } else {
+        msg.reply(cmdLang[conf.lang].setp.help)
+      }
+    }
+
+
+
+
+    if (cmdDef.cmd == "setl" && cmdDef.params.length == 1) {
+
+    }
   }
 });
+
+// // Make the program clear last presence data after a while.
+// setInterval(()=>{
+//   for (var presence in presenceLast) {
+//     console.log(presenceLast);
+//     console.log(new Date() - presenceLast[presence].timestamp);
+//     if (new Date() - presenceLast[presence].timestamp > 5000) {
+//       delete presenceLast[presence];
+//       console.log(`Deleted last presence data for user ${presenceLast[presence].user}.`);
+//     }
+//   }
+// }, 3000)
+
+var presenceLast = {};
+
+// Added presence tracking feature.
+client.on("presenceUpdate", upd => {
+  if (upd.user.bot) return;
+  // console.log(`Update received for user ${upd.user.id}.`);
+  var presence = {
+    user: upd.user.id,
+    timestamp: new Date().getTime(),
+    presence: upd.guild.presences.get(upd.user.id)
+  };
+  if (!(upd.user.id in presenceLast)) {
+    //console.log(presence);
+    insertPresence(presence);
+  } else {
+    //console.log(presenceLast);
+    if (!upd.guild.presences.get(upd.user.id).equals(presenceLast[upd.user.id].presence)) {
+      insertPresence(presence);
+    } else {
+      // console.log(`Data will not be saved for user ${upd.user.id}.`);
+    }
+  }
+  presenceLast[upd.user.id] = presence;
+})
+
+
+// Will move this function into another file to store all specific functions
+// in one place later.
+function insertPresence(pres) {
+  // Format:
+  // {
+  //   user: "user_id",
+  //   timestamp: 1578852296892,
+  //   presence: Object -> Discord.Presence data
+  // }
+  MongoClient.connect(mongoURL, function(err, db) {
+    if (err) throw err;
+    var dbo = db.db("discord");
+    dbo.collection("user_presence_history").insertOne(pres, (err, res)=>{
+      if (err) throw err;
+      // console.log(`Saved data for user ${upd.user.id}.`);
+      db.close();
+    });
+  });
+}
+
 
 client.login(dcToken.token);

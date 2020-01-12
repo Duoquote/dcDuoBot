@@ -6,6 +6,12 @@ module.exports = {
       "id": "User ID",
       "role": "Roles",
       "roleInline": "Role"
+    },
+    "setp": {
+      "help": "Command to set the prefix. Example usage:\n --setp ~\n--setp !\n--setp //",
+      "perror1": "The prefix can only be made of maximum 2 characters.",
+      "perror2": "The character(s) given can not be used. Prefix can only be made of symbols.",
+      "set": "The prefix is set."
     }
   },
   "TR": {
@@ -15,6 +21,12 @@ module.exports = {
       "id": "Kullanıcı ID'si",
       "role": "Sahip olunan roller",
       "roleInline": "Rol"
+    },
+    "setp": {
+      "help": "Komutların başlarında kullanılan karakterleri değiştirmeyi sağlayan komut. Örnek kullanım:\n --setp ~\n--setp !\n--setp //",
+      "perror1": "Komut başlangıç karakter(ler)i en fazla 2 karakterden oluşabilir.",
+      "perror2": "Bu komut karakter(ler)i kullanılamaz. Yalnızca sembol içerebilir.",
+      "set": "Komut başlangıç karakter(ler)i ayarlandı."
     }
   }
 }
