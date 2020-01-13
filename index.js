@@ -1,9 +1,44 @@
 var Discord = require('discord.js');
-const client = new Discord.Client();
 const fs = require('fs');
 const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
 const MongoClient = require('mongodb').MongoClient;
+
+function recurseObj(obj, ind=null) {
+  var data = [];
+  for (var k in obj) {
+    if (k == "validate") {
+      continue;
+    }
+    if (typeof obj[k] == "object") {
+      recurseObj(obj[k], (ind) ? (`${ind}.${k}`):(k)).forEach((e)=>{
+        data.push(e)
+      })
+    } else {
+      data.push(`${(ind) ? (ind+"."+k):k}:${obj[k]}`)
+    }
+  }
+  return data;
+}
+
+Discord.Presence.prototype.validate = function(comp) {
+  obj = [
+    recurseObj(this),
+    recurseObj(comp)
+  ]
+  if (obj[0].length != obj[1].length) {
+    return false;
+  } else {
+    for (var i = 0; i < obj[0].length; i++) {
+      if (obj[0][i] != obj[1][i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+const client = new Discord.Client();
 
 // Will add a config option for mongoURL variable.
 var mongoURL = "mongodb://localhost:27017/discord";
@@ -161,13 +196,13 @@ client.on("presenceUpdate", (oldPres, newPres)=> {
     presence: newPres.guild.presences.get(newPres.user.id)
   }
   if (pres.user in presenceLast) {
-    if (!pres.presence.equals(presenceLast[pres.user])) {
+    if (!presenceLast[pres.user].validate(pres.presence)) {
       insertPresence(pres);
     }
   } else {
     insertPresence(pres);
   }
-  presenceLast[newPres.user.id] = pres.presence;
+  presenceLast[pres.user] = pres.presence;
 })
 
 
