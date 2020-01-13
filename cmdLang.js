@@ -12,6 +12,11 @@ module.exports = {
       "perror1": "The prefix can only be made of maximum 2 characters.",
       "perror2": "The character(s) given can not be used. Prefix can only be made of symbols.",
       "set": "The prefix is set."
+    },
+    "setl": {
+      "help": "Command to set the language. Here is a list of languages you can choose from:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Example usage:**\n--setl EN\n--setl TR",
+      "success": "Language is set.",
+      "notavail": "The language chosen is not available."
     }
   },
   "TR": {
@@ -27,6 +32,11 @@ module.exports = {
       "perror1": "Komut başlangıç karakter(ler)i en fazla 2 karakterden oluşabilir.",
       "perror2": "Bu komut karakter(ler)i kullanılamaz. Yalnızca sembol içerebilir.",
       "set": "Komut başlangıç karakter(ler)i ayarlandı."
+    },
+    "setl": {
+      "help": "Dili değiştirmeyi sağlayan komut. Mevcut olan dil listesi:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Örnek kullanım:**\n--setl EN\n--setl TR",
+      "success": "Dil değiştirildi.",
+      "notavail": "Seçilen dil desteği bulunmamakta."
     }
   }
 }
