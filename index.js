@@ -7,6 +7,7 @@ const cmdLang  = require("./cmdLang.js");
 const MongoClient = require('mongodb').MongoClient;
 
 
+
 // // I used this function to compare two objects, was good, may reference later for
 // // other purposes. Needs some fix though, Arrays are not included in comparison.
 // function recurseObj(obj, ind=null) {
