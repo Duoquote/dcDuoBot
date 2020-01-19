@@ -4,9 +4,61 @@ const client = new Discord.Client();
 const fs = require('fs');
 const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
-const MongoClient = require('mongodb').MongoClient;
+
+var dcToken;
+
+if (fs.existsSync("./dcToken.js")) {
+  dcToken = require('./dcToken.js');
+} else {
+  console.log("Put your token inside 'dcTokenExample.js' and rename it to 'dcToken.js'");
+  exit();
+}
+
+const sqlite3 = require('sqlite3').verbose();
+
+var db = new sqlite3.Database(conf.sqlite, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+  if (err) throw err;
+  console.log(`Connected to the sqlite database at "${conf.sqlite}"`);
+});
+
+// Create main database tables.
+db.run(`
+  CREATE TABLE IF NOT EXISTS servers(
+  	'id'	INTEGER PRIMARY KEY AUTOINCREMENT,
+  	'dc_id'	TEXT UNIQUE NOT NULL,
+  	'lang'	TEXT,
+  	'prefix'	TEXT
+  );
+  `, (err)=>{
+    if (err) throw err;
+  })
+
+var serverData = {}
+function rData(dc_id = null) {
+  if (dc_id) {
+    db.get(`
+      SELECT * FROM servers WHERE dc_id = $dc_id;
+      `, {$dc_id: dc_id}, (err, data)=>{
+        serverData[data.dc_id] = data
+      })
+  } else {
+    db.all(`
+      SELECT * FROM servers;
+      `, (err, data)=>{
+        data.forEach(server => {
+          serverData[server.dc_id] = server
+        })
+        console.log(serverData);
+      })
+  }
+}
+
+rData();
 
 
+
+
+// const MongoClient = require('mongodb').MongoClient;
 
 // // I used this function to compare two objects, was good, may reference later for
 // // other purposes. Needs some fix though, Arrays are not included in comparison.
@@ -45,35 +97,33 @@ const MongoClient = require('mongodb').MongoClient;
 // }
 
 
-// Will add a config option for mongoURL variable.
-var mongoURL = "mongodb://localhost:27017/discord";
-var serverData = {}
-var dcToken;
+// // Abandoned using mongodb for now, will use sqlite to store in file.
 
-if (fs.existsSync("./dcToken.js")) {
-  dcToken = require('./dcToken.js');
-} else {
-  console.log("Put your token inside 'dcTokenExample.js' and rename it to 'dcToken.js'");
-  exit();
-}
 
-function reloadServerData(callback=null) {
-  MongoClient.connect(mongoURL, (err, db)=>{
-    if (err) throw err;
-    var dbo = db.db("discord");
-    dbo.collection("bot_data").find({}).toArray((err, resp)=>{
-      if (err) throw err;
-      resp.forEach((sw)=>{
-        serverData[sw.id] = sw;
-      })
-      db.close(false, ()=>{
-        if (typeof callback == "function") {
-          callback();
-        }
-      });
-    })
-  })
-}
+// // Will add a config option for mongoURL variable.
+// var mongoURL = "mongodb://localhost:27017/discord";
+
+// function rServerData(callback=null) {
+//
+// }
+
+// function reloadServerData(callback=null) {
+//   MongoClient.connect(mongoURL, (err, db)=>{
+//     if (err) throw err;
+//     var dbo = db.db("discord");
+//     dbo.collection("bot_data").find({}).toArray((err, resp)=>{
+//       if (err) throw err;
+//       resp.forEach((sw)=>{
+//         serverData[sw.id] = sw;
+//       })
+//       db.close(false, ()=>{
+//         if (typeof callback == "function") {
+//           callback();
+//         }
+//       });
+//     })
+//   })
+// }
 
 
 function cmdParser(cmdIn, prefix) {
@@ -91,7 +141,7 @@ function cmdParser(cmdIn, prefix) {
     });
 }
 
-reloadServerData();
+// reloadServerData();
 
 client.on('ready', () => {
   console.log(`Bot "${client.user.tag}" is ready!`);
@@ -106,12 +156,12 @@ client.on('message', msg => {
   var prx;
   var lang;
   if (msg.guild.id in serverData) {
-    if ("prefix" in serverData[msg.guild.id]) {
+    if (serverData[msg.guild.id].prefix) {
       prx = serverData[msg.guild.id].prefix;
     } else {
       prx = conf.prefix;
     }
-    if ("lang" in serverData[msg.guild.id]) {
+    if (serverData[msg.guild.id].lang) {
       lang = serverData[msg.guild.id].lang;
     } else {
       lang = conf.lang;
@@ -151,13 +201,28 @@ client.on('message', msg => {
       if (cmdDef.params.length == 1) {
         if (cmdDef.params[0].length <= 2) {
           if (cmdDef.params[0].match(new RegExp(/^([^\w\s\/]|_){1,2}$/, "g"))) {
-            MongoClient.connect(mongoURL, (err, db)=>{
+            db.run(`
+              INSERT INTO servers(
+                dc_id,
+                prefix
+              ) VALUES (
+                $dc_id,
+                $prefix
+              )
+              ON CONFLICT(dc_id) DO UPDATE SET
+                prefix = $prefix
+              WHERE dc_id = $dc_id;
+              `, {$dc_id: msg.guild.id, $prefix: cmdDef.params[0]}, (err)=>{
               if (err) throw err;
-              var dbo = db.db("discord");
-              dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {prefix: cmdDef.params[0]}}, { upsert: true })
-              db.close();
-              reloadServerData()
+              rData(msg.guild.id);
             })
+            // MongoClient.connect(mongoURL, (err, db)=>{
+            //   if (err) throw err;
+            //   var dbo = db.db("discord");
+            //   dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {prefix: cmdDef.params[0]}}, { upsert: true })
+            //   db.close();
+            //   reloadServerData()
+            // })
             msg.reply(cmdLang[lang].setp.set)
           } else {
             msg.reply(cmdLang[lang].setp.perror2)
@@ -173,16 +238,31 @@ client.on('message', msg => {
     if (cmdDef.cmd == "setl") {
       if (cmdDef.params.length == 1) {
         if (cmdDef.params[0].toUpperCase() in cmdLang) {
-          MongoClient.connect(mongoURL, (err, db)=>{
+          db.run(`
+            INSERT INTO servers(
+              dc_id,
+              lang
+            ) VALUES (
+              $dc_id,
+              $lang
+            )
+            ON CONFLICT(dc_id) DO UPDATE SET
+              lang = $lang
+            WHERE dc_id = $dc_id;
+            `, {$dc_id: msg.guild.id, $lang: cmdDef.params[0]}, (err)=>{
             if (err) throw err;
-            var dbo = db.db("discord");
-            dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {lang: cmdDef.params[0].toUpperCase()}}, {upsert: true});
-            db.close(false, ()=>{
-              reloadServerData(()=>{
-                msg.reply(cmdLang[cmdDef.params[0].toUpperCase()].setl.success)
-              })
-            });
+            rData(msg.guild.id);
           })
+          // MongoClient.connect(mongoURL, (err, db)=>{
+          //   if (err) throw err;
+          //   var dbo = db.db("discord");
+          //   dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {lang: cmdDef.params[0].toUpperCase()}}, {upsert: true});
+          //   db.close(false, ()=>{
+          //     reloadServerData(()=>{
+          //       msg.reply(cmdLang[cmdDef.params[0].toUpperCase()].setl.success)
+          //     })
+          //   });
+          // })
         } else {
           msg.reply(cmdLang[lang].setl.notavail)
         }
@@ -192,6 +272,15 @@ client.on('message', msg => {
     }
   }
 });
+
+process.on("exit", ()=>{
+  db.close((err) => {
+    if (err) {
+      console.error(err.message);
+    }
+    console.log('Close the database connection.');
+  });
+})
 
 client.login(dcToken.token);
 
