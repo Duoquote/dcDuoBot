@@ -125,8 +125,9 @@ rData();
 //   })
 // }
 
+// reloadServerData();
 
-function cmdParser(cmdIn, prefix) {
+function parseCmd(cmdIn, prefix) {
   return cmdIn.split(/ +/)
     .reduce((acc, arg, ind)=>{
       if (arg.indexOf(prefix) == 0 && ind == 0) {
@@ -141,18 +142,15 @@ function cmdParser(cmdIn, prefix) {
     });
 }
 
-// reloadServerData();
-
 client.on('ready', () => {
   console.log(`Bot "${client.user.tag}" is ready!`);
-  // console.log(client.guilds.get("393057072079568907").presences);
-  //console.log(client);
 });
 
 
 
 client.on('message', msg => {
   if (msg.author.bot) return;
+
   var prx;
   var lang;
   if (msg.guild.id in serverData) {
@@ -171,13 +169,13 @@ client.on('message', msg => {
     lang = conf.lang;
   }
 
-  // Will add language selection later.
   if(msg.content.indexOf(prx) !== 0) return;
-  var cmdDef = cmdParser(msg.content, prx);
 
-  if (cmdDef) {
+  var command = parseCmd(msg.content, prx);
+
+  if (command) {
     // Profile command.
-    if (cmdDef.cmd == "profile" && cmdDef.params.length == 0) {
+    if (command.cmd == "profile" && command.params.length == 0) {
       var user = client.users.get(msg.author.id)
       var avatarURL = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
       var profile = new Discord.RichEmbed()
@@ -196,48 +194,51 @@ client.on('message', msg => {
     }
 
 
-    // Set prefix command.
-    if (cmdDef.cmd == "setp") { // Add permission check when changing prefix.
-      if (cmdDef.params.length == 1) {
-        if (cmdDef.params[0].length <= 2) {
-          if (cmdDef.params[0].match(new RegExp(/^([^\w\s\/]|_){1,2}$/, "g"))) {
-            db.run(`
-              INSERT INTO servers(
-                dc_id,
-                prefix
-              ) VALUES (
-                $dc_id,
-                $prefix
-              )
-              ON CONFLICT(dc_id) DO UPDATE SET
-                prefix = $prefix
-              WHERE dc_id = $dc_id;
-              `, {$dc_id: msg.guild.id, $prefix: cmdDef.params[0]}, (err)=>{
-              if (err) throw err;
-              rData(msg.guild.id);
-            })
-            // MongoClient.connect(mongoURL, (err, db)=>{
-            //   if (err) throw err;
-            //   var dbo = db.db("discord");
-            //   dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {prefix: cmdDef.params[0]}}, { upsert: true })
-            //   db.close();
-            //   reloadServerData()
-            // })
-            msg.reply(cmdLang[lang].setp.set)
-          } else {
-            msg.reply(cmdLang[lang].setp.perror2)
-          }
-        } else {
-          msg.reply(cmdLang[lang].setp.perror1)
-        }
-      } else {
-        msg.reply(cmdLang[lang].setp.help)
+    // Set command.
+    if (command.cmd == "set") {
+      if (!(msg.member.hasPermission(Discord.Permissions.MANAGE_CHANNELS))) {
+        msg.reply(cmdLang.set.permission);
+        return;
       }
-    }
-
-    if (cmdDef.cmd == "setl") {
-      if (cmdDef.params.length == 1) {
-        if (cmdDef.params[0].toUpperCase() in cmdLang) {
+      if (command.params.length == 0) {
+        msg.reply(cmdLang[lang].set.help)
+        return
+      }
+      if (command.params[0] == "prefix") {
+        if (command.params.length == 1) {
+          msg.reply(cmdLang[lang].set.prefix.help)
+          return;
+        }
+        if (command.params[1].length > 2) {
+          msg.reply(cmdLang[lang].set.prefix.help)
+          return;
+        }
+        if (command.params[1].match(new RegExp(/^([^\w\s\/]|_){1,2}$/, "g"))) {
+          db.run(`
+            INSERT INTO servers(
+              dc_id,
+              prefix
+            ) VALUES (
+              $dc_id,
+              $prefix
+            )
+            ON CONFLICT(dc_id) DO UPDATE SET
+              prefix = $prefix
+            WHERE dc_id = $dc_id;
+            `, {$dc_id: msg.guild.id, $prefix: command.params[1]}, (err)=>{
+            if (err) throw err;
+            rData(msg.guild.id);
+          })
+          msg.reply(cmdLang[lang].set.prefix.set)
+        } else {
+          msg.reply(cmdLang[lang].set.prefix.help)
+        }
+      } else if (command.params[0] == "language") {
+        if (command.params.length == 1) {
+          msg.reply(cmdLang[lang].set.language.help)
+          return;
+        }
+        if (command.params[1].toUpperCase() in cmdLang) {
           db.run(`
             INSERT INTO servers(
               dc_id,
@@ -249,25 +250,14 @@ client.on('message', msg => {
             ON CONFLICT(dc_id) DO UPDATE SET
               lang = $lang
             WHERE dc_id = $dc_id;
-            `, {$dc_id: msg.guild.id, $lang: cmdDef.params[0]}, (err)=>{
+            `, {$dc_id: msg.guild.id, $lang: command.params[1].toUpperCase()}, (err)=>{
             if (err) throw err;
             rData(msg.guild.id);
+            msg.reply(cmdLang[lang].set.language.set)
           })
-          // MongoClient.connect(mongoURL, (err, db)=>{
-          //   if (err) throw err;
-          //   var dbo = db.db("discord");
-          //   dbo.collection("bot_data").updateOne({id: msg.guild.id}, {$set: {lang: cmdDef.params[0].toUpperCase()}}, {upsert: true});
-          //   db.close(false, ()=>{
-          //     reloadServerData(()=>{
-          //       msg.reply(cmdLang[cmdDef.params[0].toUpperCase()].setl.success)
-          //     })
-          //   });
-          // })
         } else {
-          msg.reply(cmdLang[lang].setl.notavail)
+          msg.reply(cmdLang[lang].set.language.help)
         }
-      } else {
-        msg.reply(cmdLang[lang].setl.help)
       }
     }
   }

@@ -7,16 +7,17 @@ module.exports = {
       "role": "Roles",
       "roleInline": "Role"
     },
-    "setp": {
-      "help": "Command to set the prefix. Example usage:\n --setp ~\n--setp !\n--setp //",
-      "perror1": "The prefix can only be made of maximum 2 characters.",
-      "perror2": "The character(s) given can not be used. Prefix can only be made of symbols.",
-      "set": "The prefix is set."
-    },
-    "setl": {
-      "help": "Command to set the language. Here is a list of languages you can choose from:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Example usage:**\n--setl EN\n--setl TR",
-      "success": "Language is set.",
-      "notavail": "The language chosen is not available."
+    "set": {
+      "permission": "Insufficient permission.",
+      "help": "Command to set some configurable settings like; language and prefix.",
+      "prefix": {
+        "help": "Command to set the prefix. Can only be consist of characters and should not exceed 2 characters. Example usage:\n --setp ~\n--setp !\n--setp //",
+        "set": "The prefix is set."
+      },
+      "language": {
+        "help": "Command to set the language. Here is a list of languages you can choose from:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Example usage:**\n--setl EN\n--setl TR",
+        "set": "Language is set.",
+      }
     }
   },
   "TR": {
@@ -27,16 +28,17 @@ module.exports = {
       "role": "Sahip olunan roller",
       "roleInline": "Rol"
     },
-    "setp": {
-      "help": "Komutların başlarında kullanılan karakterleri değiştirmeyi sağlayan komut. Örnek kullanım:\n --setp ~\n--setp !\n--setp //",
-      "perror1": "Komut başlangıç karakter(ler)i en fazla 2 karakterden oluşabilir.",
-      "perror2": "Bu komut karakter(ler)i kullanılamaz. Yalnızca sembol içerebilir.",
-      "set": "Komut başlangıç karakter(ler)i ayarlandı."
-    },
-    "setl": {
-      "help": "Dili değiştirmeyi sağlayan komut. Mevcut olan dil listesi:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Örnek kullanım:**\n--setl EN\n--setl TR",
-      "success": "Dil değiştirildi.",
-      "notavail": "Seçilen dil desteği bulunmamakta."
+    "set": {
+      "permission": "Yetersiz yetki.",
+      "help": "Dil, komutların başlangıcında kullanılan karakter seçimi gibi ayarların yapılabildiği komut.",
+      "prefix": {
+        "help": "Komutların başlarında kullanılan karakterleri değiştirmeyi sağlayan komut. Yalnızca karakterler kullanılabilir, en fazla 2 karakter kullanılabilir. Örnek kullanım:\n --setp ~\n--setp !\n--setp //",
+        "set": "Komut başlangıç karakter(ler)i ayarlandı."
+      },
+      "language": {
+        "help": "Dili değiştirmeyi sağlayan komut. Mevcut olan dil listesi:\n```ruby\nEnglish: EN\nTurkish: TR```\n**Örnek kullanım:**\n--setl EN\n--setl TR",
+        "set": "Dil değiştirildi.",
+      }
     }
   }
 }

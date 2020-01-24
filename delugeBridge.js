@@ -92,7 +92,6 @@ class Deluge {
 }
 
 var deluge = new Deluge();
-//deluge.add("magnet:?xt=urn:btih:f6d71eeeff4b9117f4fc070ccc67634cc317185c&dn=ParanormalHK-PLAZA&tr=udp://9.rarbg.me:2720/announce&tr=udp://9.rarbg.to:2800/announce&tr=udp://tracker.opentrackr.org:1337/announce&tr=udp://tracker.leechers-paradise.org:6969/announce&tr=udp://tracker.internetwarriors.net:1337/announce")
 deluge.resume("f6d71eeeff4b9117f4fc070ccc67634cc317185c");
 // setInterval(()=>{
 //   console.log(deluge.info());
