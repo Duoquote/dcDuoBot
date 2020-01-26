@@ -2,11 +2,11 @@ const fs = require('fs');
 const { spawn, spawnSync } = require('child_process');
 const conf = require('./conf.js');
 
+
 class Deluge {
   constructor () {
     this.deluged = spawn(conf.deluge.deluge_deluged_path);
     this.lastState = this.getLastState();
-    console.log(this.lastState);
   }
   resume (id) {
     return spawnSync(conf.deluge.deluge_executable_path, ["resume", id])
@@ -33,57 +33,81 @@ class Deluge {
   //     _('Error'),
   // ];
   //console.log(this.TORRENT_STATE);
-  getLastState() {
-    var info = spawnSync(conf.deluge.deluge_executable_path, ["info"]).stdout.toString();
+  getLastState () {
+    var infoGet = spawnSync(conf.deluge.deluge_executable_path, ["info"]).stdout.toString().split(/\r\n \r\n/);
+    var infoList = [];
 
     // Parse info command into dictionary.
-    info = [...info.matchAll(new RegExp(/^(?<key>.*?): ?(?<val>.*)/, "gm"))].reduce((acc, e)=>{
-      acc[e.groups.key.toLowerCase().replace(/\s/, "_")] = e.groups.val;
-      return acc;
-    }, {});
-    info.status = info.state.split(/\s/)[0].toLowerCase();
+    infoGet.forEach((info)=>{
+      info = [...info.matchAll(new RegExp(/^(?<key>.*?): ?(?<val>.*)/, "gm"))].reduce((acc, e)=>{
+        acc[e.groups.key.toLowerCase().replace(/\s/, "_")] = e.groups.val;
+        return acc;
+      }, {});
 
-    // Parse seeder and peer counts.
-    var seeder = info.seeds.match(/(?<seeders>\d+)\s\(\d+\).*?(?<peers>\d+).*(?<avail>\d+\.\d+)/).groups;
-    info.seed = parseInt(seeder.seeders);
-    info.peer = parseInt(seeder.peers);
-    info.progress = parseFloat(info.progress.match(/^\d+\.\d+/)[0]);
+      // Parse seeder and peer counts.
+      if (info.seeds) {
+        var seeder = [...info.seeds.matchAll(new RegExp(/(\d+) \((-*\d+)\)/, "g"))];
+        info.seeds = {
+          active: parseInt(seeder[0][0]),
+          available: parseInt(seeder[0][1])
+        }
+        info.peer = {
+          active: parseInt(seeder[1][0]),
+          available: parseInt(seeder[1][1])
+        }
+      } else {
 
-    // Parse received and total size information.
-    info.size = {...info.size.match(/(?<received>\d+\.\d+.+?)\/(?<total>\d+\.\d+.+?)\s/).groups};
-
-    // Parse elapsed day and HH:MM:SS information.
-    info.seed_time = info.seed_time.match(/.*(?<days>\d+).*?(?<h>\d{2}):(?<m>\d{2}):(?<s>\d{2})/).groups;
-
-    // Turn time into seconds.
-    var time = 0;
-    time += parseInt(info.seed_time.days) * 24 * 60 * 60;
-    time += parseInt(info.seed_time.h) * 60 * 60;
-    time += parseInt(info.seed_time.m) * 60;
-    time += parseInt(info.seed_time.s);
-    info.seed_time = time;
-
-    // If the status is `downloading`, add download and upload speed.
-    if (info.status == "downloading") {
-      // Parse download and upload speed, including KiB, MiB etc. indicators.
-      var rate = info.state.match(/(?<down>\d+\.\d+).*(?<up>\d+\.\d+)/)
-      info.speed = {
-        down: parseFloat(rate.groups.down),
-        up: parseFloat(rate.groups.up)
       }
-    } else {
-      info.speed = {
-        down: null,
-        up: null
+
+      if (info.progress) {
+        info.progress = parseFloat(info.progress.match(/^\d+\.\d+/)[0]);
       }
-    }
 
-    // Remove unnecessary torrent info.
-    delete info.seeds;
-    delete info.state;
-    delete info.tracker_status;
+      // Parse received and total size information.
+      info.size = {...info.size.match(/(?<received>\d+\.\d+.+?)\/(?<total>\d+\.\d+.+?)\s/).groups};
 
-    return info;
+      // Parse elapsed day and HH:MM:SS information.
+      if (info.seed_time) {
+        info.seed_time = info.seed_time.split(/(?<=\d\d:\d\d:\d\d)\s.*?(?=\d)/);
+        info.time = {
+          active: info.seed_time[0],
+          seed: info.seed_time[1]
+        }
+      }
+
+
+      info.status = info.state.split(/\s/)[0].toLowerCase();
+
+      // If the status is `downloading`, add download and upload speed.
+
+      if (info.status == "downloading") {
+        // Parse download and upload speed, including KiB, MiB etc. indicators.
+        info.speed = {
+          down: info.state.match(/Down Speed: (?<speed>.*?\/s)/).groups.speed,
+          up: info.state.match(/Up Speed: (?<speed>.*?\/s)/).groups.speed
+        }
+      } else if (info.status == "seeding") {
+        console.log(info.state.match(/.*:\s(.*)/));
+        info.speed = {
+          down: null,
+          up: info.state.match(/Up Speed: (?<speed>.*?\/s)/).groups.speed
+        }
+      } else {
+        info.speed = {
+          down: null,
+          up: null
+        }
+      }
+
+      // Remove unnecessary torrent info.
+      delete info.seeds;
+      delete info.state;
+      delete info.tracker_status;
+      delete info.seed_time;
+
+      infoList.push(info);
+    })
+    return infoList;
   }
 
   kill () {
@@ -91,17 +115,5 @@ class Deluge {
   }
 }
 
-var deluge = new Deluge();
-deluge.resume("f6d71eeeff4b9117f4fc070ccc67634cc317185c");
-// setInterval(()=>{
-//   console.log(deluge.info());
-// }, 3000)
 
-// Move to main file
-
-
-process.on("exit", ()=>{
-  deluge.kill();
-})
-
-//module.exports = Deluge
+module.exports = Deluge

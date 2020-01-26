@@ -4,6 +4,7 @@ const client = new Discord.Client();
 const fs = require('fs');
 const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
+const Deluge = require("./delugeBridge.js");
 
 var dcToken;
 
@@ -14,11 +15,15 @@ if (fs.existsSync("./dcToken.js")) {
   exit();
 }
 
+if (dcToken.delugeServerID) {
+  var deluge = new Deluge();
+}
+
 const sqlite3 = require('sqlite3').verbose();
 
 var db = new sqlite3.Database(conf.sqlite, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) throw err;
-  console.log(`Connected to the sqlite database at "${conf.sqlite}"`);
+  console.log(`Connected to sqlite database at "${conf.sqlite}"`);
 });
 
 // Create main database tables.
@@ -54,76 +59,6 @@ function rData(dc_id = null) {
 }
 
 rData();
-
-
-
-
-// const MongoClient = require('mongodb').MongoClient;
-
-// // I used this function to compare two objects, was good, may reference later for
-// // other purposes. Needs some fix though, Arrays are not included in comparison.
-// function recurseObj(obj, ind=null) {
-//   var data = [];
-//   for (var k in obj) {
-//     if (k == "validate") {
-//       continue;
-//     }
-//     if (typeof obj[k] == "object") {
-//       recurseObj(obj[k], (ind) ? (`${ind}.${k}`):(k)).forEach((e)=>{
-//         data.push(e)
-//       })
-//     } else {
-//       data.push(`${(ind) ? (ind+"."+k):k}:${obj[k]}`)
-//     }
-//   }
-//   return data;
-// }
-//
-// Discord.Presence.prototype.validate = function(comp) {
-//   obj = [
-//     recurseObj(this),
-//     recurseObj(comp)
-//   ]
-//   if (obj[0].length != obj[1].length) {
-//     return false;
-//   } else {
-//     for (var i = 0; i < obj[0].length; i++) {
-//       if (obj[0][i] != obj[1][i]) {
-//         return false;
-//       }
-//     }
-//     return true;
-//   }
-// }
-
-
-// // Abandoned using mongodb for now, will use sqlite to store in file.
-
-
-// // Will add a config option for mongoURL variable.
-// var mongoURL = "mongodb://localhost:27017/discord";
-
-// function rServerData(callback=null) {
-//
-// }
-
-// function reloadServerData(callback=null) {
-//   MongoClient.connect(mongoURL, (err, db)=>{
-//     if (err) throw err;
-//     var dbo = db.db("discord");
-//     dbo.collection("bot_data").find({}).toArray((err, resp)=>{
-//       if (err) throw err;
-//       resp.forEach((sw)=>{
-//         serverData[sw.id] = sw;
-//       })
-//       db.close(false, ()=>{
-//         if (typeof callback == "function") {
-//           callback();
-//         }
-//       });
-//     })
-//   })
-// }
 
 // reloadServerData();
 
@@ -260,6 +195,34 @@ client.on('message', msg => {
         }
       }
     }
+
+
+    // Deluge command
+    if (command.cmd == "t") {
+      if (!command.params) {
+        return;
+      }
+      if (command.params[0] == "info") {
+        var delugeInfo = new Discord.RichEmbed()
+          .setAuthor("Deluge", "https://upload.wikimedia.org/wikipedia/commons/c/c5/Deluge_icon.png", "https://guvendegirmenci.com")
+        var torList = deluge.info();
+        if (torList > 3) {
+          torList = torList.split(torList.length - 3, torList.length - 1)
+        }
+        deluge.info().forEach((info)=>{
+
+          delugeInfo.addField(((info.name.length > 45) ? info.name.substr(0, 45) + "...":info.name), `
+            ID: \`${info.id}\`
+            > Size: \`${info.size.received} / ${info.size.total}\`
+            > Status: \`${info.status}\`
+            ` +
+            ((info.speed.up) ? `> Down: \`${info.speed.down}\` // Up: \`${info.speed.up}\`\n`:"") +
+            ((info.time) ? `> Active for __${info.time.active}__ // Seeding for __${info.time.seed}__`:"")
+          )
+        })
+        msg.reply(delugeInfo)
+      }
+    }
   }
 });
 
@@ -270,6 +233,9 @@ process.on("exit", ()=>{
     }
     console.log('Close the database connection.');
   });
+  if (dcToken.delugeServerID) {
+    deluge.kill();
+  }
 })
 
 client.login(dcToken.token);
