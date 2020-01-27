@@ -87,7 +87,6 @@ class Deluge {
           up: info.state.match(/Up Speed: (?<speed>.*?\/s)/).groups.speed
         }
       } else if (info.status == "seeding") {
-        console.log(info.state.match(/.*:\s(.*)/));
         info.speed = {
           down: null,
           up: info.state.match(/Up Speed: (?<speed>.*?\/s)/).groups.speed

@@ -199,6 +199,9 @@ client.on('message', msg => {
 
     // Deluge command
     if (command.cmd == "t") {
+      if (!dcToken.delugeServerID.includes(msg.guild.id)) {
+        return;
+      }
       if (!command.params) {
         return;
       }
@@ -239,61 +242,3 @@ process.on("exit", ()=>{
 })
 
 client.login(dcToken.token);
-
-////////////////////////////////////////////////////////////////////////////////
-// // Presence tracking feature turned out to be SOOO buggy, so I am going to
-// // abandon it, at least for now.
-//
-//
-//
-// var presenceLast = [{}, {}];
-//
-// // Added presence tracking feature.
-// client.on("presenceUpdate", (oldPres, newPres)=> {
-//   if (newPres.user.bot) return;
-//   // Format:
-//   // {
-//   //   user: "user_id",
-//   //   timestamp: 1578852296892,
-//   //   presence: Object -> Discord.Presence data
-//   // }
-//   var pres = {
-//     user: newPres.user.id,
-//     timestamp: new Date(),
-//     presence: newPres.guild.presences.get(newPres.user.id)
-//   }
-//   console.log(pres.presence);
-//   console.log(oldPres.frozenPresence);
-//   console.log("-------------------------------------------------------------");
-//   if (pres.user in presenceLast[0]) {
-//     if (JSON.stringify(pres.presence) != JSON.stringify(presenceLast[0][pres.user])) {
-//       insertPresence(pres);
-//     }
-//     if (pres.user in presenceLast[1]) {
-//       if (JSON.stringify(oldPres.frozenPresence) != JSON.stringify(presenceLast[1][pres.user])) {
-//         pres.presence = oldPres.frozenPresence;
-//         insertPresence(pres);
-//       }
-//     }
-//     presenceLast[1][pres.user] = presenceLast[0][pres.user];
-//   } else {
-//     insertPresence(pres);
-//   }
-//   presenceLast[0][pres.user] = newPres.guild.presences.get(newPres.user.id);
-//
-// })
-//
-//
-// // Will move this function into another file to store all specific functions
-// // in one place later.
-// function insertPresence(pres) {
-//   MongoClient.connect(mongoURL, function(err, db) {
-//     if (err) throw err;
-//     var dbo = db.db("discord");
-//     dbo.collection("user_presence_history").insertOne(pres, (err, res)=>{
-//       if (err) throw err;
-//       // console.log(`Saved data for user ${upd.user.id}.`);
-//       db.close();
-//     });
-//   });
-// }
