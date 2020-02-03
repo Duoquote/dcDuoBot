@@ -8,10 +8,10 @@ const Deluge = require("./delugeBridge.js");
 
 var dcToken;
 
-if (fs.existsSync("./dcToken.js")) {
-  dcToken = require('./dcToken.js');
+if (process.env.DC_TOKEN) {
+  dcToken = process.env.DC_TOKEN;
 } else {
-  console.log("Put your token inside 'dcTokenExample.js' and rename it to 'dcToken.js'");
+  console.log("Set `DC_TOKEN` environment variable with you token.");
   exit();
 }
 //
@@ -245,4 +245,4 @@ process.on("exit", ()=>{
   // }
 })
 
-client.login(dcToken.token);
+client.login(dcToken);
