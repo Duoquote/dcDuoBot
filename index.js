@@ -14,10 +14,10 @@ if (fs.existsSync("./dcToken.js")) {
   console.log("Put your token inside 'dcTokenExample.js' and rename it to 'dcToken.js'");
   exit();
 }
-
-if (dcToken.delugeServerID) {
-  var deluge = new Deluge();
-}
+//
+// if (dcToken.delugeServerID) {
+//   var deluge = new Deluge();
+// }
 
 const sqlite3 = require('sqlite3').verbose();
 
@@ -109,6 +109,7 @@ client.on('message', msg => {
   var command = parseCmd(msg.content, prx);
 
   if (command) {
+
     // Profile command.
     if (command.cmd == "profile" && command.params.length == 0) {
       var user = client.users.get(msg.author.id)
@@ -197,35 +198,38 @@ client.on('message', msg => {
     }
 
 
-    // Deluge command
-    if (command.cmd == "t") {
-      if (!dcToken.delugeServerID.includes(msg.guild.id)) {
-        return;
-      }
-      if (!command.params) {
-        return;
-      }
-      if (command.params[0] == "info") {
-        var delugeInfo = new Discord.RichEmbed()
-          .setAuthor("Deluge", "https://upload.wikimedia.org/wikipedia/commons/c/c5/Deluge_icon.png", "https://guvendegirmenci.com")
-        var torList = deluge.info();
-        if (torList > 3) {
-          torList = torList.split(torList.length - 3, torList.length - 1)
-        }
-        deluge.info().forEach((info)=>{
-
-          delugeInfo.addField(((info.name.length > 45) ? info.name.substr(0, 45) + "...":info.name), `
-            ID: \`${info.id}\`
-            > Size: \`${info.size.received} / ${info.size.total}\`
-            > Status: \`${info.status}\`
-            ` +
-            ((info.speed.up) ? `> Down: \`${info.speed.down}\` // Up: \`${info.speed.up}\`\n`:"") +
-            ((info.time) ? `> Active for __${info.time.active}__ // Seeding for __${info.time.seed}__`:"")
-          )
-        })
-        msg.reply(delugeInfo)
-      }
-    }
+    // // Deluge command
+    // if (command.cmd == "t") {
+    //   if (!dcToken.delugeServerID) {
+    //     return;
+    //   }
+    //   if (!dcToken.delugeServerID.includes(msg.guild.id)) {
+    //     return;
+    //   }
+    //   if (!command.params) {
+    //     return;
+    //   }
+    //   if (command.params[0] == "info") {
+    //     var delugeInfo = new Discord.RichEmbed()
+    //       .setAuthor("Deluge", "https://upload.wikimedia.org/wikipedia/commons/c/c5/Deluge_icon.png", "https://guvendegirmenci.com")
+    //     var torList = deluge.info();
+    //     if (torList > 3) {
+    //       torList = torList.split(torList.length - 3, torList.length - 1)
+    //     }
+    //     deluge.info().forEach((info)=>{
+    //
+    //       delugeInfo.addField(((info.name.length > 45) ? info.name.substr(0, 45) + "...":info.name), `
+    //         ID: \`${info.id}\`
+    //         > Size: \`${info.size.received} / ${info.size.total}\`
+    //         > Status: \`${info.status}\`
+    //         ` +
+    //         ((info.speed.up) ? `> Down: \`${info.speed.down}\` // Up: \`${info.speed.up}\`\n`:"") +
+    //         ((info.time) ? `> Active for __${info.time.active}__ // Seeding for __${info.time.seed}__`:"")
+    //       )
+    //     })
+    //     msg.reply(delugeInfo)
+    //   }
+    // }
   }
 });
 
@@ -236,9 +240,9 @@ process.on("exit", ()=>{
     }
     console.log('Close the database connection.');
   });
-  if (dcToken.delugeServerID) {
-    deluge.kill();
-  }
+  // if (dcToken.delugeServerID) {
+  //   deluge.kill();
+  // }
 })
 
 client.login(dcToken.token);

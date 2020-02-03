@@ -2,6 +2,11 @@ const fs = require('fs');
 const { spawn, spawnSync } = require('child_process');
 const conf = require('./conf.js');
 
+///////////////////////////////////////////////////////////////////////////////
+// This thing is abandoned as I decided to host the bot in heroku platform and
+// it would be unsecure to expose deluge server port.
+///////////////////////////////////////////////////////////////////////////////
+
 
 class Deluge {
   constructor () {
