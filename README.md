@@ -2,7 +2,7 @@
 
 I am making my own Discord bot to use it on my server. May make it publicly accessible when it's done.
 
-##TO-DOs
+### TO-DOs
 
 - [ ] Add more functions.
 - [x] ~~Add user variable support~~ (**Language**, ~~prefix~~ etc.).
