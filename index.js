@@ -46,6 +46,7 @@ if (process.env.BOT_GIT_USER && process.env.BOT_GIT_PASSWORD && process.env.BOT_
 
 
 function saveData() {
+  console.log("Saving data...");
   simpleGit.add(path.parse(SQLITE_FILE).base);
   simpleGit.commit("Added data into file.");
   simpleGit.push("origin", "master")
