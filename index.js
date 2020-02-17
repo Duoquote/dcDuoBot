@@ -30,6 +30,8 @@ if (process.env.BOT_GIT_USER && process.env.BOT_GIT_PASSWORD && process.env.BOT_
 
   SQLITE_FILE = `${path.parse(conf.sqlite).dir}/${REPO}/${path.parse(conf.sqlite).base}`;
 
+  fs.mkdirSync(path.parse(SQLITE_FILE).dir, {recursive: true});
+
   USE_GIT = true;
 
   if (!(fs.existsSync(path.parse(SQLITE_FILE).dir))) {
