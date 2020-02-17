@@ -117,7 +117,7 @@ function rData({dc_id, initData} = {dc_id: null, initData: false}) {
   }
 }
 
-var updateJob = new CronJob("0 0 * * * *", ()=>{
+var updateJob = new CronJob("* * * * * *", ()=>{
   if (dataState) {
     saveData();
     dataState = false;
