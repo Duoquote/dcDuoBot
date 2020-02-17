@@ -14,6 +14,8 @@ var REPO;
 var USE_GIT = false;
 var simpleGit;
 
+fs.mkdirSync(path.parse(conf.sqlite).dir, {recursive: true});
+
 if (process.env.BOT_GIT_USER && process.env.BOT_GIT_PASSWORD && process.env.BOT_GIT_REPO) {
   if (!(url.parse(process.env.BOT_GIT_REPO).host)) {
     console.log("Set `BOT_GIT_REPO` environment variable with `HTTPS` url, not `SSH`.");
@@ -29,8 +31,6 @@ if (process.env.BOT_GIT_USER && process.env.BOT_GIT_PASSWORD && process.env.BOT_
   REPO = path.parse(url.parse(REPO_URL).path).name;
 
   SQLITE_FILE = `${path.parse(conf.sqlite).dir}/${REPO}/${path.parse(conf.sqlite).base}`;
-
-  fs.mkdirSync(path.parse(SQLITE_FILE).dir, {recursive: true});
 
   USE_GIT = true;
 
@@ -266,6 +266,9 @@ client.on('message', msg => {
 });
 
 process.on("SIGINT", ()=>{
+  process.exit();
+});
+process.on("SIGTERM", ()=>{
   process.exit();
 });
 
