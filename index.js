@@ -4,26 +4,66 @@ const client = new Discord.Client();
 const fs = require('fs');
 const conf = require("./conf.js");
 const cmdLang  = require("./cmdLang.js");
-const Deluge = require("./delugeBridge.js");
+const path = require('path');
+const CronJob = require('cron').CronJob;
+const url = require('url');
 
-var dcToken;
+var DC_TOKEN;
+var SQLITE_FILE;
+var REPO;
+var USE_GIT = false;
+var simpleGit;
+
+if (process.env.BOT_GIT_USER && process.env.BOT_GIT_PASSWORD && process.env.BOT_GIT_REPO) {
+  if (!(url.parse(process.env.BOT_GIT_REPO).host)) {
+    console.log("Set `BOT_GIT_REPO` environment variable with `HTTPS` url, not `SSH`.");
+    return process.exit(0);
+  }
+
+  simpleGit = require('simple-git')(path.parse(conf.sqlite).dir);
+
+  let REPO_ORIGINAL = url.parse(process.env.BOT_GIT_REPO);
+  const REPO_URL = `${REPO_ORIGINAL.protocol}//${process.env.BOT_GIT_USER}:${process.env.BOT_GIT_PASSWORD}@${REPO_ORIGINAL.host + REPO_ORIGINAL.path}`
+  delete REPO_ORIGINAL;
+
+  REPO = path.parse(url.parse(REPO_URL).path).name;
+
+  SQLITE_FILE = `${path.parse(conf.sqlite).dir}/${REPO}/${path.parse(conf.sqlite).base}`;
+
+  USE_GIT = true;
+
+  if (!(fs.existsSync(path.parse(SQLITE_FILE).dir))) {
+    simpleGit.clone(REPO_URL);
+  } else {
+    simpleGit.cwd(path.parse(SQLITE_FILE).dir)
+  }
+
+} else {
+  SQLITE_FILE = conf.sqlite;
+}
+
+
+function saveData() {
+  simpleGit.add(path.parse(SQLITE_FILE).base);
+  simpleGit.commit("Added data into file.");
+  simpleGit.push("origin", "master")
+}
+
+fs.mkdirSync(path.parse(SQLITE_FILE).dir, {recursive: true});
+
 
 if (process.env.DC_TOKEN) {
-  dcToken = process.env.DC_TOKEN;
+  DC_TOKEN = process.env.DC_TOKEN;
 } else {
   console.log("Set `DC_TOKEN` environment variable with you token.");
-  exit();
+  return process.exit(0);
 }
-//
-// if (dcToken.delugeServerID) {
-//   var deluge = new Deluge();
-// }
 
 const sqlite3 = require('sqlite3').verbose();
 
-var db = new sqlite3.Database(conf.sqlite, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+var db = new sqlite3.Database(SQLITE_FILE, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
   if (err) throw err;
-  console.log(`Connected to sqlite database at "${conf.sqlite}"`);
+  console.log(`Connected to sqlite database at "${SQLITE_FILE}"`);
 });
 
 // Create main database tables.
@@ -39,26 +79,50 @@ db.run(`
   })
 
 var serverData = {}
-function rData(dc_id = null) {
-  if (dc_id) {
-    db.get(`
-      SELECT * FROM servers WHERE dc_id = $dc_id;
-      `, {$dc_id: dc_id}, (err, data)=>{
-        serverData[data.dc_id] = data
-      })
-  } else {
+var dataState = false;
+function rData({dc_id, initData} = {dc_id: null, initData: false}) {
+  if (initData) {
     db.all(`
       SELECT * FROM servers;
       `, (err, data)=>{
-        data.forEach(server => {
-          serverData[server.dc_id] = server
-        })
-        console.log(serverData);
+        if (data) {
+          data.forEach(server => {
+            serverData[server.dc_id] = server
+          })
+          console.log(serverData);
+        }
       })
+  } else {
+    if (dc_id) {
+      db.get(`
+        SELECT * FROM servers WHERE dc_id = $dc_id;
+        `, {$dc_id: dc_id}, (err, data)=>{
+          serverData[data.dc_id] = data
+          dataState = true;
+        })
+    } else {
+      db.all(`
+        SELECT * FROM servers;
+        `, (err, data)=>{
+          if (data) {
+            data.forEach(server => {
+              serverData[server.dc_id] = server
+            })
+            dataState = true;
+          }
+        })
+    }
   }
 }
 
-rData();
+var updateJob = new CronJob("0 0 * * * *", ()=>{
+  if (dataState) {
+    saveData();
+    dataState = false;
+  }
+}, null, true);
+
+rData({initData: true});
 
 // reloadServerData();
 
@@ -163,7 +227,7 @@ client.on('message', msg => {
             WHERE dc_id = $dc_id;
             `, {$dc_id: msg.guild.id, $prefix: command.params[1]}, (err)=>{
             if (err) throw err;
-            rData(msg.guild.id);
+            rData({dc_id: msg.guild.id});
           })
           msg.reply(cmdLang[lang].set.prefix.set)
         } else {
@@ -188,7 +252,7 @@ client.on('message', msg => {
             WHERE dc_id = $dc_id;
             `, {$dc_id: msg.guild.id, $lang: command.params[1].toUpperCase()}, (err)=>{
             if (err) throw err;
-            rData(msg.guild.id);
+            rData({dc_id: msg.guild.id});
             msg.reply(cmdLang[lang].set.language.set)
           })
         } else {
@@ -196,41 +260,11 @@ client.on('message', msg => {
         }
       }
     }
-
-
-    // // Deluge command
-    // if (command.cmd == "t") {
-    //   if (!dcToken.delugeServerID) {
-    //     return;
-    //   }
-    //   if (!dcToken.delugeServerID.includes(msg.guild.id)) {
-    //     return;
-    //   }
-    //   if (!command.params) {
-    //     return;
-    //   }
-    //   if (command.params[0] == "info") {
-    //     var delugeInfo = new Discord.RichEmbed()
-    //       .setAuthor("Deluge", "https://upload.wikimedia.org/wikipedia/commons/c/c5/Deluge_icon.png", "https://guvendegirmenci.com")
-    //     var torList = deluge.info();
-    //     if (torList > 3) {
-    //       torList = torList.split(torList.length - 3, torList.length - 1)
-    //     }
-    //     deluge.info().forEach((info)=>{
-    //
-    //       delugeInfo.addField(((info.name.length > 45) ? info.name.substr(0, 45) + "...":info.name), `
-    //         ID: \`${info.id}\`
-    //         > Size: \`${info.size.received} / ${info.size.total}\`
-    //         > Status: \`${info.status}\`
-    //         ` +
-    //         ((info.speed.up) ? `> Down: \`${info.speed.down}\` // Up: \`${info.speed.up}\`\n`:"") +
-    //         ((info.time) ? `> Active for __${info.time.active}__ // Seeding for __${info.time.seed}__`:"")
-    //       )
-    //     })
-    //     msg.reply(delugeInfo)
-    //   }
-    // }
   }
+});
+
+process.on("SIGINT", ()=>{
+  process.exit();
 });
 
 process.on("exit", ()=>{
@@ -240,9 +274,7 @@ process.on("exit", ()=>{
     }
     console.log('Close the database connection.');
   });
-  // if (dcToken.delugeServerID) {
-  //   deluge.kill();
-  // }
+  saveData();
 })
 
-client.login(dcToken);
+client.login(DC_TOKEN);
